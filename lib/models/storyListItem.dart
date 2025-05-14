@@ -11,6 +11,7 @@ class StoryListItem {
   List<Category>? categoryList;
   bool? isSales = false;
   String? displayCategory;
+  DateTime? publishTime;
 
   StoryListItem(
       {this.id,
@@ -20,7 +21,8 @@ class StoryListItem {
       required this.photoUrl,
       this.categoryList,
       this.isSales,
-      this.displayCategory});
+      this.displayCategory,
+      this.publishTime});
 
   factory StoryListItem.fromJsonSales(Map<String, dynamic> json) {
     String photoUrl = Environment().config.mirrorNewsDefaultImageUrl;
@@ -43,6 +45,11 @@ class StoryListItem {
       }
     }
 
+    DateTime? publishTimeValue;
+    if (json['adPost'] != null && json['adPost']['publishTime'] != null) {
+      publishTimeValue = DateTime.tryParse(json['adPost']['publishTime']);
+    }
+
     return StoryListItem(
         id: json['adPost'][BaseModel.idKey],
         name: json['adPost'][BaseModel.nameKey],
@@ -51,7 +58,8 @@ class StoryListItem {
         photoUrl: photoUrl,
         isSales: true,
         categoryList: allPostsCategory,
-        displayCategory: displayCategory);
+        displayCategory: displayCategory,
+        publishTime: publishTimeValue);
   }
 
   factory StoryListItem.fromJson(Map<String, dynamic> json) {
@@ -86,6 +94,11 @@ class StoryListItem {
       style = json['style'];
     }
 
+    DateTime? publishTimeValue;
+    if (json['publishTime'] != null) {
+      publishTimeValue = DateTime.tryParse(json['publishTime']);
+    }
+
     return StoryListItem(
         id: json[BaseModel.idKey],
         name: json[BaseModel.nameKey],
@@ -94,7 +107,8 @@ class StoryListItem {
         photoUrl: photoUrl,
         isSales: false,
         categoryList: allPostsCategory,
-        displayCategory: displayCategory);
+        displayCategory: displayCategory,
+        publishTime: publishTimeValue);
   }
 
   Map<String, dynamic> toJson() => {

@@ -55,27 +55,116 @@ class NewsPageController extends GetxController {
 
   void fetchArticleList() async {
     rxPageStatus.value = PageStatus.loading;
-    final latestResult = await articlesApiProvider.getLatestArticles();
-    rxRenderStoryList.value = latestResult;
-    final salesArticles = await articlesApiProvider.getSalesArticles();
-    for (int salesArticleIndex = 0;
-        salesArticleIndex < salesArticles.length &&
-            salesArticleIndex < articleInsertIndexArray.length;
-        salesArticleIndex++) {
-      rxRenderStoryList.insert(articleInsertIndexArray[salesArticleIndex] - 1,
-          salesArticles[salesArticleIndex]);
+    page = 0;
+
+    try {
+      final results = await Future.wait([
+        articlesApiProvider.getLatestArticles(
+            skip: 0, first: articleDefaultCountOnePage),
+        articlesApiProvider.getExternalArticlesList(
+            skip: 0, first: articleDefaultCountOnePage),
+      ]);
+
+      final List<StoryListItem> posts = results[0];
+      final List<StoryListItem> externals = results[1];
+
+      List<StoryListItem> combinedList = [];
+      combinedList.addAll(posts);
+      combinedList.addAll(externals);
+
+      combinedList.sort((a, b) {
+        if (a.publishTime == null && b.publishTime == null) return 0;
+        if (a.publishTime == null) return 1;
+        if (b.publishTime == null) return -1;
+        return b.publishTime!.compareTo(a.publishTime!);
+      });
+
+      List<StoryListItem> salesArticles = [];
+      try {
+        salesArticles = await articlesApiProvider.getSalesArticles();
+      } catch (e) {
+        // error
+      }
+
+      final List<StoryListItem> allArticles = [
+        ...combinedList,
+        ...salesArticles
+      ];
+
+      List<StoryListItem> uniqueArticles = [];
+      Set<String?> uniqueSlugs = {};
+      for (var article in allArticles) {
+        if (uniqueSlugs.add(article.slug)) {
+          uniqueArticles.add(article);
+        }
+      }
+
+      rxRenderStoryList.value = uniqueArticles;
+
+      if (uniqueArticles.length < articleDefaultCountOnePage &&
+          posts.length < articleDefaultCountOnePage &&
+          externals.length < articleDefaultCountOnePage) {
+        rxPageStatus.value = PageStatus.loadingEnd;
+      } else {
+        rxPageStatus.value = PageStatus.normal;
+      }
+    } catch (e) {
+      rxPageStatus.value = PageStatus.error;
     }
-    rxPageStatus.value = PageStatus.normal;
   }
 
   void fetchMoreArticle() async {
+    if (rxPageStatus.value == PageStatus.loading ||
+        rxPageStatus.value == PageStatus.loadingEnd) {
+      return;
+    }
     rxPageStatus.value = PageStatus.loading;
     page++;
-    final newLatestArticle = await articlesApiProvider.getLatestArticles(
-        skip: page * 20, first: articleDefaultCountOnePage);
-    Set<StoryListItem> uniqueObjects =
-        Set<StoryListItem>.from(rxRenderStoryList)..addAll(newLatestArticle);
-    rxRenderStoryList.value = uniqueObjects.toList();
-    rxPageStatus.value = PageStatus.normal;
+
+    try {
+      final results = await Future.wait([
+        articlesApiProvider.getLatestArticles(
+            skip: page * articleDefaultCountOnePage,
+            first: articleDefaultCountOnePage),
+        articlesApiProvider.getExternalArticlesList(
+            skip: page * articleDefaultCountOnePage,
+            first: articleDefaultCountOnePage),
+      ]);
+
+      final List<StoryListItem> newPosts = results[0];
+      final List<StoryListItem> newExternals = results[1];
+
+      bool noMoreNewPosts = newPosts.isEmpty;
+      bool noMoreNewExternals = newExternals.isEmpty;
+
+      if (noMoreNewPosts && noMoreNewExternals) {
+        rxPageStatus.value = PageStatus.loadingEnd;
+        return;
+      }
+
+      List<StoryListItem> currentList = List.from(rxRenderStoryList);
+      currentList.addAll(newPosts);
+      currentList.addAll(newExternals);
+
+      currentList.sort((a, b) {
+        if (a.publishTime == null && b.publishTime == null) return 0;
+        if (a.publishTime == null) return 1;
+        if (b.publishTime == null) return -1;
+        return b.publishTime!.compareTo(a.publishTime!);
+      });
+
+      Set<StoryListItem> uniqueObjects = Set<StoryListItem>.from(currentList);
+      rxRenderStoryList.value = uniqueObjects.toList();
+
+      if (noMoreNewPosts &&
+          noMoreNewExternals &&
+          rxRenderStoryList.length == currentList.length / 2) {
+      } else {
+        rxPageStatus.value = PageStatus.normal;
+      }
+    } catch (e) {
+      print("Error fetching more articles: $e");
+      rxPageStatus.value = PageStatus.error;
+    }
   }
 }
