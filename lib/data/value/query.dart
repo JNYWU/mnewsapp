@@ -1,5 +1,4 @@
 class QueryCommand {
-
   static String getYoutubeStreamList = '''
    query{
     allVideos( 
@@ -43,7 +42,7 @@ class QueryCommand {
   }
   ''';
 
-  static String getShowBySlug ='''
+  static String getShowBySlug = '''
   query {
       allShows(
         where: {slug:"%s"},
@@ -60,7 +59,7 @@ class QueryCommand {
     }
   ''';
 
-  static String getLatestArticles ='''
+  static String getLatestArticles = '''
     query {
       allPosts(
         where:{
@@ -88,6 +87,31 @@ class QueryCommand {
     }
   ''';
 
+  static String getExternalArticles = '''
+    query {
+      allExternals(
+        where:{
+           state:published
+        },
+        skip:%d, 
+        first:%d, 
+        sortBy: [ publishTime_DESC ], 
+      ) {
+        id
+        slug
+        name
+        categories{ 
+            name
+            id
+            slug
+        }
+        thumbnail
+        state
+        publishTime
+      }
+    }
+  ''';
+
   static String getSalesArticles = '''
   query{
     allSales(
@@ -110,5 +134,4 @@ class QueryCommand {
     }
   }
   ''';
-
 }

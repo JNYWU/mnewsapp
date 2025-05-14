@@ -15,6 +15,7 @@ import 'package:tv/models/podcast_info/podcast_info.dart';
 import 'package:tv/models/showIntro.dart';
 import 'package:tv/models/storyListItem.dart';
 import 'package:tv/models/youtube_list_info.dart';
+import 'package:tv/models/baseModel.dart';
 
 import '../helpers/dataConstants.dart';
 
@@ -232,5 +233,61 @@ class ArticlesApiProvider extends GetConnect {
         !result.data!.containsKey('allSales')) return [];
     final allPostsList = result.data!['allSales'] as List<dynamic>;
     return allPostsList.map((e) => StoryListItem.fromJsonSales(e)).toList();
+  }
+
+  Future<List<StoryListItem>> getExternalArticlesList(
+      {int? skip = 0, int? first = 20}) async {
+    String queryString = QueryCommand.getExternalArticles.format([skip, first]);
+    final result =
+        await client?.value.query(QueryOptions(document: gql(queryString)));
+
+    if (result == null ||
+        result.data == null ||
+        !result.data!.containsKey('allExternals')) {
+      return [];
+    }
+
+    final allExternalsList = result.data!['allExternals'] as List<dynamic>;
+
+    List<StoryListItem> storyListItems = [];
+    for (var externalJson in allExternalsList) {
+      String photoUrl = externalJson['thumbnail'] ??
+          Environment().config.mirrorNewsDefaultImageUrl;
+
+      List<Category>? categoryList;
+      String? displayCategoryName;
+      if (externalJson['categories'] != null &&
+          (externalJson['categories'] as List).isNotEmpty) {
+        categoryList = List<Category>.from(
+            externalJson['categories'].map((cat) => Category.fromJson(cat)));
+        if (categoryList.isNotEmpty) {
+          displayCategoryName = categoryList[0].name;
+          for (var cat in categoryList) {
+            if (cat.slug == 'ombuds') {
+              displayCategoryName = "公評人";
+              break;
+            }
+          }
+        }
+      }
+
+      DateTime? pTime = externalJson['publishTime'] != null
+          ? DateTime.tryParse(externalJson['publishTime'])
+          : null;
+
+      StoryListItem currentItem = StoryListItem(
+        id: externalJson[BaseModel.idKey],
+        name: externalJson[BaseModel.nameKey],
+        slug: externalJson[BaseModel.slugKey],
+        style: null,
+        photoUrl: photoUrl,
+        categoryList: categoryList,
+        displayCategory: displayCategoryName,
+        isSales: false,
+        publishTime: pTime,
+      );
+      storyListItems.add(currentItem);
+    }
+    return storyListItems;
   }
 }
