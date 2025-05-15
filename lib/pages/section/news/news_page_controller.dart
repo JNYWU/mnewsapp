@@ -165,21 +165,12 @@ class NewsPageController extends GetxController {
 
       rxRenderStoryList.addAll(articlesToAdd);
 
-      if (noMoreNewPosts && noMoreNewExternals) {
-        if (articlesToAdd.isEmpty &&
-            (newPosts.isNotEmpty || newExternals.isNotEmpty)) {
-          rxPageStatus.value = PageStatus.loadingEnd;
-        } else if (articlesToAdd.isEmpty &&
-            newPosts.isEmpty &&
-            newExternals.isEmpty) {
-          rxPageStatus.value = PageStatus.loadingEnd;
-        } else {
-          rxPageStatus.value = PageStatus.normal;
-        }
+      if (noMoreNewPosts && noMoreNewExternals && articlesToAdd.isEmpty) {
+        rxPageStatus.value = PageStatus.loadingEnd;
       } else {
         rxPageStatus.value = PageStatus.normal;
       }
-    } catch (e, s) {
+    } catch (e) {
       rxPageStatus.value = PageStatus.error;
     }
   }
