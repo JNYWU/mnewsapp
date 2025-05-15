@@ -142,33 +142,44 @@ class NewsPageController extends GetxController {
         return;
       }
 
-      List<StoryListItem> currentList = List.from(rxRenderStoryList);
-      currentList.addAll(newPosts);
-      currentList.addAll(newExternals);
+      List<StoryListItem> newlyFetchedStories = [];
+      newlyFetchedStories.addAll(newPosts);
+      newlyFetchedStories.addAll(newExternals);
 
-      List<StoryListItem> uniqueNewArticles = [];
       Set<String?> existingSlugs =
           rxRenderStoryList.map((item) => item.slug).toSet();
-      for (var article in currentList) {
-        if (article.slug != null && existingSlugs.add(article.slug)) {
-          uniqueNewArticles.add(article);
-        } else if (article.slug == null &&
-            !uniqueNewArticles.contains(article)) {
-          uniqueNewArticles.add(article);
+
+      List<StoryListItem> articlesToAdd = [];
+      for (var article in newlyFetchedStories) {
+        if (article.slug != null) {
+          if (!existingSlugs.contains(article.slug)) {
+            articlesToAdd.add(article);
+            existingSlugs.add(article.slug);
+          }
+        } else {
+          articlesToAdd.add(article);
         }
       }
 
-      sortByPublishTime(uniqueNewArticles);
+      sortByPublishTime(articlesToAdd);
 
-      rxRenderStoryList.assignAll(uniqueNewArticles);
+      rxRenderStoryList.addAll(articlesToAdd);
 
       if (noMoreNewPosts && noMoreNewExternals) {
-        rxPageStatus.value = PageStatus.loadingEnd;
+        if (articlesToAdd.isEmpty &&
+            (newPosts.isNotEmpty || newExternals.isNotEmpty)) {
+          rxPageStatus.value = PageStatus.loadingEnd;
+        } else if (articlesToAdd.isEmpty &&
+            newPosts.isEmpty &&
+            newExternals.isEmpty) {
+          rxPageStatus.value = PageStatus.loadingEnd;
+        } else {
+          rxPageStatus.value = PageStatus.normal;
+        }
       } else {
         rxPageStatus.value = PageStatus.normal;
       }
-    } catch (e) {
-      print("Error fetching more articles: $e");
+    } catch (e, s) {
       rxPageStatus.value = PageStatus.error;
     }
   }
