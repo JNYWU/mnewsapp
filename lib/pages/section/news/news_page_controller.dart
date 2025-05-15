@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:tv/core/enum/page_status.dart';
 import 'package:tv/models/storyListItem.dart';
 import 'package:tv/provider/articles_api_provider.dart';
+import 'package:tv/helpers/list_sort_helper.dart';
 import 'dart:convert';
 
 class NewsPageController extends GetxController {
@@ -72,12 +73,7 @@ class NewsPageController extends GetxController {
       combinedList.addAll(posts);
       combinedList.addAll(externals);
 
-      combinedList.sort((a, b) {
-        if (a.publishTime == null && b.publishTime == null) return 0;
-        if (a.publishTime == null) return 1;
-        if (b.publishTime == null) return -1;
-        return b.publishTime!.compareTo(a.publishTime!);
-      });
+      sortByPublishTime(combinedList);
 
       List<StoryListItem> salesArticles = [];
       try {
@@ -94,10 +90,14 @@ class NewsPageController extends GetxController {
       List<StoryListItem> uniqueArticles = [];
       Set<String?> uniqueSlugs = {};
       for (var article in allArticles) {
-        if (uniqueSlugs.add(article.slug)) {
+        if (article.slug != null && uniqueSlugs.add(article.slug)) {
+          uniqueArticles.add(article);
+        } else if (article.slug == null) {
           uniqueArticles.add(article);
         }
       }
+
+      sortByPublishTime(uniqueArticles);
 
       rxRenderStoryList.value = uniqueArticles;
 
@@ -146,19 +146,24 @@ class NewsPageController extends GetxController {
       currentList.addAll(newPosts);
       currentList.addAll(newExternals);
 
-      currentList.sort((a, b) {
-        if (a.publishTime == null && b.publishTime == null) return 0;
-        if (a.publishTime == null) return 1;
-        if (b.publishTime == null) return -1;
-        return b.publishTime!.compareTo(a.publishTime!);
-      });
+      List<StoryListItem> uniqueNewArticles = [];
+      Set<String?> existingSlugs =
+          rxRenderStoryList.map((item) => item.slug).toSet();
+      for (var article in currentList) {
+        if (article.slug != null && existingSlugs.add(article.slug)) {
+          uniqueNewArticles.add(article);
+        } else if (article.slug == null &&
+            !uniqueNewArticles.contains(article)) {
+          uniqueNewArticles.add(article);
+        }
+      }
 
-      Set<StoryListItem> uniqueObjects = Set<StoryListItem>.from(currentList);
-      rxRenderStoryList.value = uniqueObjects.toList();
+      sortByPublishTime(uniqueNewArticles);
 
-      if (noMoreNewPosts &&
-          noMoreNewExternals &&
-          rxRenderStoryList.length == currentList.length / 2) {
+      rxRenderStoryList.assignAll(uniqueNewArticles);
+
+      if (noMoreNewPosts && noMoreNewExternals) {
+        rxPageStatus.value = PageStatus.loadingEnd;
       } else {
         rxPageStatus.value = PageStatus.normal;
       }
